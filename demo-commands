@@ -1,0 +1,11 @@
+export ETCD_AUTHORITY=172.17.8.101:2379
+sudo ETCD_AUTHORITY=172.17.8.101:2379 ./calicoctl node --ip=172.17.8.101 --node-image=calico/node:libnetwork
+docker network create --driver=calico net1
+docker network create --driver=calico net2
+docker run -tid --net net1 --name box1 busybox
+docker run -tid --net net1 --name box2 busybox
+docker run -tid --net net2 --name box3 busybox
+docker inspect --format "{{ .NetworkSettings.IPAddress }}" box2
+docker exec box1 ping -c 1 192.168.0.2
+docker exec box1 ping -c 1 192.168.0.3
+docker exec box3 ping -c 1 192.168.0.1

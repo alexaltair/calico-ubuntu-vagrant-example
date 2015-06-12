@@ -27,15 +27,6 @@ Vagrant.configure(2) do |config|
   # accessing "localhost:8080" will access port 80 on the guest machine.
   # config.vm.network "forwarded_port", guest: 80, host: 8080
 
-  # Create a private network, which allows host-only access to the machine
-  # using a specific IP.
-  # config.vm.network "private_network", ip: "192.168.33.10"
-
-  # Create a public network, which generally matched to bridged network.
-  # Bridged networks make the machine appear as another physical device on
-  # your network.
-  # config.vm.network "public_network"
-
   # Share an additional folder to the guest VM. The first argument is
   # the path on the host to the actual folder. The second argument is
   # the path on the guest to mount the folder. And the optional third
@@ -73,23 +64,42 @@ Vagrant.configure(2) do |config|
       ip = "172.17.8.#{i+100}"
       host.vm.network :private_network, ip: ip
 
-      # Metaswitch modification: download calico and preload the docker images.
-      host.vm.provision :shell, inline: "wget -q https://circle-artifacts.com/gh/Metaswitch/calico-docker/718/artifacts/0/home/ubuntu/calico-docker/dist/calicoctl"
+      # download calico and preload the docker images.
+      host.vm.provision :shell, inline: "wget -q https://circle-artifacts.com/gh/Metaswitch/calico-docker/718/artifacts/0"\
+                                        "/home/ubuntu/calico-docker/dist/calicoctl"
       host.vm.provision :shell, inline: "chmod +x calicoctl"
       host.vm.provision :shell, inline: "sudo modprobe ip6_tables"
       host.vm.provision :shell, inline: "sudo modprobe xt_set"
-      host.vm.provision "docker", images: ["busybox:latest",
-                                           "quay.io/coreos/etcd:v2.0.11",
-                                           "calico/node:libnetwork",
-                                          ]
+      host.vm.provision :shell, inline: "sudo sysctl -w net.ipv6.conf.all.forwarding=1"
+      host.vm.provision :docker, images: [
+          "busybox:latest",
+          "calico/node:libnetwork",
+          "quay.io/coreos/etcd:v2.0.11",
+      ]
 
       # Replace docker with an unreleased version.
-      host.vm.provision :shell, inline: "wget https://transfer.sh/PzCye/docker > /dev/null 2>&1"
+      filename = "docker"
+      host.vm.provision :shell, inline: "wget https://transfer.sh/PzCye/#{filename} > /dev/null 2>&1"
       # host.vm.provision :shell, inline: "wget https://master.dockerproject.org/linux/amd64/docker-1.7.0-dev > /dev/null"
-      host.vm.provision :shell, inline: "chmod +x docker"
+      host.vm.provision :shell, inline: "chmod +x #{filename}"
       host.vm.provision :shell, inline: "sudo stop docker"
-      host.vm.provision :shell, inline: "sudo cp docker $(which docker)"
+      host.vm.provision :shell, inline: "sudo cp #{filename} $(which docker)"
       host.vm.provision :shell, inline: "sudo start docker"
+
+      if i == 1
+        host.vm.provision :docker do |d|
+          d.run "quay.io/coreos/etcd",
+            args: "-p 2379:2379 -p 2380:2380",
+            cmd: "--name calico "\
+             "--advertise-client-urls http://#{ip}:2379 "\
+             "--listen-client-urls http://0.0.0.0:2379 "\
+             "--initial-advertise-peer-urls http://#{ip}:2380 "\
+             "--listen-peer-urls http://0.0.0.0:2380 "\
+             "--initial-cluster-token etcd-cluster-2 "\
+             "--initial-cluster calico=http://#{ip}:2380 "\
+             "--initial-cluster-state new"
+        end
+      end
     end
   end
 end
