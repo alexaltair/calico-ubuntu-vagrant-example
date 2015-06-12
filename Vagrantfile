@@ -65,8 +65,7 @@ Vagrant.configure(2) do |config|
       host.vm.network :private_network, ip: ip
 
       # download calico and preload the docker images.
-      host.vm.provision :shell, inline: "wget -q https://circle-artifacts.com/gh/Metaswitch/calico-docker/718/artifacts/0"\
-                                        "/home/ubuntu/calico-docker/dist/calicoctl"
+      host.vm.provision :shell, inline: "wget -q https://circle-artifacts.com/gh/Metaswitch/calico-docker/731/artifacts/0/home/ubuntu/calico-docker/dist/calicoctl"
       host.vm.provision :shell, inline: "chmod +x calicoctl"
       host.vm.provision :shell, inline: "sudo modprobe ip6_tables"
       host.vm.provision :shell, inline: "sudo modprobe xt_set"
@@ -86,19 +85,17 @@ Vagrant.configure(2) do |config|
       host.vm.provision :shell, inline: "sudo cp #{filename} $(which docker)"
       host.vm.provision :shell, inline: "sudo start docker"
 
-      if i == 1
-        host.vm.provision :docker do |d|
-          d.run "quay.io/coreos/etcd",
-            args: "-p 2379:2379 -p 2380:2380",
-            cmd: "--name calico "\
-             "--advertise-client-urls http://#{ip}:2379 "\
-             "--listen-client-urls http://0.0.0.0:2379 "\
-             "--initial-advertise-peer-urls http://#{ip}:2380 "\
-             "--listen-peer-urls http://0.0.0.0:2380 "\
-             "--initial-cluster-token etcd-cluster-2 "\
-             "--initial-cluster calico=http://#{ip}:2380 "\
-             "--initial-cluster-state new"
-        end
+      host.vm.provision :docker do |d|
+        d.run "quay.io/coreos/etcd",
+          args: "-p 4001:4001 -p 7001:7001",
+          cmd: "--name calico#{i} "\
+           "--advertise-client-urls http://#{ip}:4001 "\
+           "--listen-client-urls http://0.0.0.0:4001 "\
+           "--initial-advertise-peer-urls http://#{ip}:7001 "\
+           "--listen-peer-urls http://0.0.0.0:7001 "\
+           "--initial-cluster-token etcd-cluster-2 "\
+           "--initial-cluster calico1=http://172.17.8.101:7001,calico2=http://172.17.8.102:7001 "\
+           "--initial-cluster-state new"
       end
     end
   end
