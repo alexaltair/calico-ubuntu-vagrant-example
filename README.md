@@ -15,8 +15,8 @@ In this example, we will use the server names and IP addresses from the [Calico 
 
 | hostname   | IP address   |
 |------------|--------------|
-| ubuntu-01  | 172.17.8.101 |
-| ubuntu-02  | 172.17.8.102 |
+| ubuntu-01  | 172.17.8.100 |
+| ubuntu-02  | 172.17.8.101 |
 
 If you set up your own cluster, substitute the hostnames and IP addresses assigned to your servers.
 
@@ -26,11 +26,11 @@ Once you have your cluster up and running, start calico on all the nodes
 
 On ubuntu-01
 
-    sudo ./calicoctl node --ip=172.17.8.101 --node-image=calico/node:libnetwork
+    sudo ./calicoctl node --ip=172.17.8.100 --node-image=calico/node:libnetwork
 
 On ubuntu-02
 
-    sudo ./calicoctl node --ip=172.17.8.102 --node-image=calico/node:libnetwork
+    sudo ./calicoctl node --ip=172.17.8.101 --node-image=calico/node:libnetwork
 
 This will start a container. Check they are running
 
@@ -38,9 +38,10 @@ This will start a container. Check they are running
 
 You should see output like this on each node
 
-    vagrant@ubuntu-01 ~ $ docker ps
-    CONTAINER ID        IMAGE                      COMMAND                CREATED             STATUS              PORTS               NAMES
-    077ceae44fe3        calico/node:libnetwork     "/sbin/my_init"     About a minute ago   Up About a minute                       calico-node
+    vagrant@ubuntu-02:~$ docker ps -a
+    CONTAINER ID        IMAGE                    COMMAND                CREATED             STATUS              PORTS                                            NAMES
+    39de206f7499        calico/node:libnetwork   "/sbin/my_init"        2 minutes ago       Up 2 minutes                                                         calico-node
+    5e36a7c6b7f0        quay.io/coreos/etcd      "/etcd --name calico   30 minutes ago      Up 30 minutes       0.0.0.0:4001->4001/tcp, 0.0.0.0:7001->7001/tcp   quay.io-coreos-etcd
 
 ## Creating networked endpoints
 
@@ -65,15 +66,17 @@ On ubuntu-02
     docker run --net net3 --name workload-D -tid busybox
     docker run --net net1 --name workload-E -tid busybox
 
-Now, check that A can ping C (192.168.1.3) and E (192.168.1.5):
+Now, check that A can ping C and E. You can get a containers IP by running
 
-    docker exec workload-A ping -c 4 192.168.1.3
-    docker exec workload-A ping -c 4 192.168.1.5
+    docker inspect --format "{{ .NetworkSettings.IPAddress }}" <container name>
 
-Also check that A cannot ping B (192.168.1.2) or D (192.168.1.4):
+    docker exec workload-A ping -c 4 192.168.0.3
+    docker exec workload-A ping -c 4 192.168.0.5
 
-    docker exec workload-A ping -c 4 192.168.1.2
-    docker exec workload-A ping -c 4 192.168.1.4
+Also check that A cannot ping B or D:
+
+    docker exec workload-A ping -c 4 192.168.0.2
+    docker exec workload-A ping -c 4 192.168.0.4
 
 By default, networks are configured so that their members can communicate with one another, but workloads in other networks cannot reach them.  B and D are in their own networks so shouldn't be able to ping anyone else.
 
@@ -103,11 +106,11 @@ Then restart your calico-node processes with the `--ip6` parameter to enable v6 
 
 On ubuntu-01
 
-    sudo ./calicoctl node --ip=172.17.8.101 --ip6=fd80:24e2:f998:72d6::1
+    sudo ./calicoctl node --ip=172.17.8.100 --ip6=fd80:24e2:f998:72d6::1 --node-image=calico/node:libnetwork
 
 On ubuntu-02
 
-    sudo ./calicoctl node --ip=172.17.8.102 --ip6=fd80:24e2:f998:72d6::2
+    sudo ./calicoctl node --ip=172.17.8.101 --ip6=fd80:24e2:f998:72d6::2 --node-image=calico/node:libnetwork
 
 Then, you can start containers with IPv6 connectivity by giving them an IPv6 address in `CALICO_IP`. By default, Calico is configured to use IPv6 addresses in the pool fd80:24e2:f998:72d6/64 (`calicoctl pool add` to change this).
 

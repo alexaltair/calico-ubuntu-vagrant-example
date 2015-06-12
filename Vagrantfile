@@ -56,8 +56,8 @@ Vagrant.configure(2) do |config|
   #   sudo apt-get install -y apache2
   # SHELL
 
-  (1..$num_instances).each do |i|
-    vm_name = "%s-%02d" % [$instance_name_prefix, i]
+  $num_instances.times do |i|
+    vm_name = [$instance_name_prefix, i].join("-")
     config.vm.define vm_name do |host|
       host.vm.hostname = vm_name
 
@@ -94,7 +94,7 @@ Vagrant.configure(2) do |config|
            "--initial-advertise-peer-urls http://#{ip}:7001 "\
            "--listen-peer-urls http://0.0.0.0:7001 "\
            "--initial-cluster-token etcd-cluster-2 "\
-           "--initial-cluster calico1=http://172.17.8.101:7001,calico2=http://172.17.8.102:7001 "\
+           "--initial-cluster calico0=http://172.17.8.100:7001,calico1=http://172.17.8.101:7001 "\
            "--initial-cluster-state new"
       end
     end
